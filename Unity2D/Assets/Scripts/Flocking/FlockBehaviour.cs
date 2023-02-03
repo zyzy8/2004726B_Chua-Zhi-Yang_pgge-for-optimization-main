@@ -2,9 +2,137 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using Unity.Jobs;
+using Unity.Collections;
+using Unity.Burst;
 
 public class FlockBehaviour : MonoBehaviour
 {
+    //NativeArray<JobHandle> jobHandleList;
+    [BurstCompile]
+    public struct Rule_CrossBorder : IJob
+    {
+        //public NativeArray<JobHandle> jobHandleList;
+        public void Execute()
+        {
+            List<Flock> flocks = new List<Flock>();
+            BoxCollider2D Bounds = null;
+
+            foreach (Flock flock in flocks)
+            {
+                List<Autonomous> autonomousList = flock.mAutonomous;
+                if (flock.bounceWall)
+                {
+                    for (int i = 0; i < autonomousList.Count; ++i)
+                    {
+                        Vector3 pos = autonomousList[i].transform.position;
+                        if (autonomousList[i].transform.position.x + 5.0f > Bounds.bounds.max.x)
+                        {
+                            autonomousList[i].TargetDirection.x = -1.0f;
+                        }
+                        if (autonomousList[i].transform.position.x - 5.0f < Bounds.bounds.min.x)
+                        {
+                            autonomousList[i].TargetDirection.x = 1.0f;
+                        }
+                        if (autonomousList[i].transform.position.y + 5.0f > Bounds.bounds.max.y)
+                        {
+                            autonomousList[i].TargetDirection.y = -1.0f;
+                        }
+                        if (autonomousList[i].transform.position.y - 5.0f < Bounds.bounds.min.y)
+                        {
+                            autonomousList[i].TargetDirection.y = 1.0f;
+                        }
+                        autonomousList[i].TargetDirection.Normalize();
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < autonomousList.Count; ++i)
+                    {
+                        Vector3 pos = autonomousList[i].transform.position;
+                        if (autonomousList[i].transform.position.x > Bounds.bounds.max.x)
+                        {
+                            pos.x = Bounds.bounds.min.x;
+                        }
+                        if (autonomousList[i].transform.position.x < Bounds.bounds.min.x)
+                        {
+                            pos.x = Bounds.bounds.max.x;
+                        }
+                        if (autonomousList[i].transform.position.y > Bounds.bounds.max.y)
+                        {
+                            pos.y = Bounds.bounds.min.y;
+                        }
+                        if (autonomousList[i].transform.position.y < Bounds.bounds.min.y)
+                        {
+                            pos.y = Bounds.bounds.max.y;
+                        }
+                        autonomousList[i].transform.position = pos;
+                    }
+                }
+            }
+        }
+    }
+
+    [BurstCompile]
+    public struct Rule_CrossBorder_Obstacles : IJob
+    {
+        //public NativeArray<JobHandle> jobHandleList;
+        public void Execute()
+        {
+            BoxCollider2D Bounds = null;
+            GameObject[] Obstacles = null;
+
+            for (int i = 0; i < Obstacles.Length; ++i)
+            {
+                Autonomous autono = Obstacles[i].GetComponent<Autonomous>();
+                Vector3 pos = autono.transform.position;
+                if (autono.transform.position.x > Bounds.bounds.max.x)
+                {
+                    pos.x = Bounds.bounds.min.x;
+                }
+                if (autono.transform.position.x < Bounds.bounds.min.x)
+                {
+                    pos.x = Bounds.bounds.max.x;
+                }
+                if (autono.transform.position.y > Bounds.bounds.max.y)
+                {
+                    pos.y = Bounds.bounds.min.y;
+                }
+                if (autono.transform.position.y < Bounds.bounds.min.y)
+                {
+                    pos.y = Bounds.bounds.max.y;
+                }
+                autono.transform.position = pos;
+            }
+    } }
+
+    private JobHandle DoRule_CrossBorder()
+    {
+        Rule_CrossBorder job = new Rule_CrossBorder();
+        
+        return job.Schedule();
+    }
+
+    private JobHandle DoRule_CrossBorder_Obstacles()
+    {
+        Rule_CrossBorder_Obstacles job = new Rule_CrossBorder_Obstacles();
+        return job.Schedule();
+    }
+
+    //public struct BoidParallelJob : IJobParallelFor
+    //{
+    //    public void Execute(int index)
+    //    {
+    //        GameObject obj = Instantiate(flock.PrefabBoid);
+    //        obj.name = "Boid_" + flock.name + "_" + flock.mAutonomous.Count;
+    //        obj.transform.position = new Vector3(x, y, 0.0f);
+    //        Autonomous boid = obj.GetComponent<Autonomous>();
+    //        flock.mAutonomous.Add(boid);
+    //        boid.MaxSpeed = flock.maxSpeed;
+    //        boid.RotationSpeed = flock.maxRotationSpeed;
+    //    }
+    //}
+
   List<Obstacle> mObstacles = new List<Obstacle>();
 
   [SerializeField]
@@ -68,12 +196,25 @@ public class FlockBehaviour : MonoBehaviour
       AddBoid(x, y, flock);
     }
   }
-
+      
   void Update()
   {
     HandleInputs();
-    Rule_CrossBorder();
-    Rule_CrossBorder_Obstacles();
+        //Rule_CrossBorder();
+        NativeArray<JobHandle> jobHandleList = new NativeArray<JobHandle>(1, Allocator.Temp);
+
+        JobHandle jobHandle = DoRule_CrossBorder();
+        jobHandle = DoRule_CrossBorder_Obstacles();
+        //Rule_CrossBorder jobData = new Rule_CrossBorder
+        //{
+        //    jobHandleList = jobHandleList
+        //};
+
+        jobHandle.Complete();
+        
+        JobHandle.CompleteAll(jobHandleList);
+        jobHandleList.Dispose();
+        //Rule_CrossBorder_Obstacles();
   }
 
   void HandleInputs()
@@ -102,18 +243,18 @@ public class FlockBehaviour : MonoBehaviour
     flocks[0].numBoids += count;
   }
 
-  void AddBoid(float x, float y, Flock flock)
-  {
-    GameObject obj = Instantiate(flock.PrefabBoid);
-    obj.name = "Boid_" + flock.name + "_" + flock.mAutonomous.Count;
-    obj.transform.position = new Vector3(x, y, 0.0f);
-    Autonomous boid = obj.GetComponent<Autonomous>();
-    flock.mAutonomous.Add(boid);
-    boid.MaxSpeed = flock.maxSpeed;
-    boid.RotationSpeed = flock.maxRotationSpeed;
-  }
+    void AddBoid(float x, float y, Flock flock)
+    {
+        GameObject obj = Instantiate(flock.PrefabBoid);
+        obj.name = "Boid_" + flock.name + "_" + flock.mAutonomous.Count;
+        obj.transform.position = new Vector3(x, y, 0.0f);
+        Autonomous boid = obj.GetComponent<Autonomous>();
+        flock.mAutonomous.Add(boid);
+        boid.MaxSpeed = flock.maxSpeed;
+        boid.RotationSpeed = flock.maxRotationSpeed;
+    }
 
-  static float Distance(Autonomous a1, Autonomous a2)
+    static float Distance(Autonomous a1, Autonomous a2)
   {
     return (a1.transform.position - a2.transform.position).magnitude;
   }
@@ -365,108 +506,37 @@ public class FlockBehaviour : MonoBehaviour
       yield return new WaitForSeconds(TickDurationRandom);
     }
   }
-  void Rule_CrossBorder_Obstacles()
-  {
-    for (int i = 0; i < Obstacles.Length; ++i)
-    {
-      Autonomous autono = Obstacles[i].GetComponent<Autonomous>();
-      Vector3 pos = autono.transform.position;
-      if (autono.transform.position.x > Bounds.bounds.max.x)
-      {
-        pos.x = Bounds.bounds.min.x;
-      }
-      if (autono.transform.position.x < Bounds.bounds.min.x)
-      {
-        pos.x = Bounds.bounds.max.x;
-      }
-      if (autono.transform.position.y > Bounds.bounds.max.y)
-      {
-        pos.y = Bounds.bounds.min.y;
-      }
-      if (autono.transform.position.y < Bounds.bounds.min.y)
-      {
-        pos.y = Bounds.bounds.max.y;
-      }
-      autono.transform.position = pos;
+        //void Rule_CrossBorder_Obstacles()
+        //{
+
+        //}
+
+        //for (int i = 0; i < Obstacles.Length; ++i)
+        //{
+        //  Autonomous autono = Obstacles[i].GetComponent<Autonomous>();
+        //  Vector3 pos = autono.transform.position;
+        //  if (autono.transform.position.x + 5.0f > Bounds.bounds.max.x)
+        //  {
+        //    autono.TargetDirection.x = -1.0f;
+        //  }
+        //  if (autono.transform.position.x - 5.0f < Bounds.bounds.min.x)
+        //  {
+        //    autono.TargetDirection.x = 1.0f;
+        //  }
+        //  if (autono.transform.position.y + 5.0f > Bounds.bounds.max.y)
+        //  {
+        //    autono.TargetDirection.y = -1.0f;
+        //  }
+        //  if (autono.transform.position.y - 5.0f < Bounds.bounds.min.y)
+        //  {
+        //    autono.TargetDirection.y = 1.0f;
+        //  }
+        //  autono.TargetDirection.Normalize();
+        //}
     }
 
-    //for (int i = 0; i < Obstacles.Length; ++i)
-    //{
-    //  Autonomous autono = Obstacles[i].GetComponent<Autonomous>();
-    //  Vector3 pos = autono.transform.position;
-    //  if (autono.transform.position.x + 5.0f > Bounds.bounds.max.x)
-    //  {
-    //    autono.TargetDirection.x = -1.0f;
-    //  }
-    //  if (autono.transform.position.x - 5.0f < Bounds.bounds.min.x)
-    //  {
-    //    autono.TargetDirection.x = 1.0f;
-    //  }
-    //  if (autono.transform.position.y + 5.0f > Bounds.bounds.max.y)
-    //  {
-    //    autono.TargetDirection.y = -1.0f;
-    //  }
-    //  if (autono.transform.position.y - 5.0f < Bounds.bounds.min.y)
-    //  {
-    //    autono.TargetDirection.y = 1.0f;
-    //  }
-    //  autono.TargetDirection.Normalize();
-    //}
-  }
+  //void Rule_CrossBorder()
+  //{
+    
+  //}
 
-  void Rule_CrossBorder()
-  {
-    foreach (Flock flock in flocks)
-    {
-      List<Autonomous> autonomousList = flock.mAutonomous;
-      if (flock.bounceWall)
-      {
-        for (int i = 0; i < autonomousList.Count; ++i)
-        {
-          Vector3 pos = autonomousList[i].transform.position;
-          if (autonomousList[i].transform.position.x + 5.0f > Bounds.bounds.max.x)
-          {
-            autonomousList[i].TargetDirection.x = -1.0f;
-          }
-          if (autonomousList[i].transform.position.x - 5.0f < Bounds.bounds.min.x)
-          {
-            autonomousList[i].TargetDirection.x = 1.0f;
-          }
-          if (autonomousList[i].transform.position.y + 5.0f > Bounds.bounds.max.y)
-          {
-            autonomousList[i].TargetDirection.y = -1.0f;
-          }
-          if (autonomousList[i].transform.position.y - 5.0f < Bounds.bounds.min.y)
-          {
-            autonomousList[i].TargetDirection.y = 1.0f;
-          }
-          autonomousList[i].TargetDirection.Normalize();
-        }
-      }
-      else
-      {
-        for (int i = 0; i < autonomousList.Count; ++i)
-        {
-          Vector3 pos = autonomousList[i].transform.position;
-          if (autonomousList[i].transform.position.x > Bounds.bounds.max.x)
-          {
-            pos.x = Bounds.bounds.min.x;
-          }
-          if (autonomousList[i].transform.position.x < Bounds.bounds.min.x)
-          {
-            pos.x = Bounds.bounds.max.x;
-          }
-          if (autonomousList[i].transform.position.y > Bounds.bounds.max.y)
-          {
-            pos.y = Bounds.bounds.min.y;
-          }
-          if (autonomousList[i].transform.position.y < Bounds.bounds.min.y)
-          {
-            pos.y = Bounds.bounds.max.y;
-          }
-          autonomousList[i].transform.position = pos;
-        }
-      }
-    }
-  }
-}

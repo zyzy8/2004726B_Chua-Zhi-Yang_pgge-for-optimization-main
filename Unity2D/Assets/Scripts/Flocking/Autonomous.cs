@@ -1,9 +1,29 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Jobs;
+using Unity.Collections;
 
 public class Autonomous : MonoBehaviour
 {
+    public struct RandomDir : IJob
+    {
+        public void Execute()
+        {
+            Vector3 TargetDirection = Vector3.zero;
+            float angle = 30.0f;// Random.Range(-180.0f, 180.0f);
+            Vector2 dir = new Vector2(Mathf.Cos(Mathf.Deg2Rad * angle), Mathf.Sin(Mathf.Deg2Rad * angle));//, 0.0f);
+            dir.Normalize();
+            TargetDirection = dir;
+        }
+    }
+
+    JobHandle DoRandomDir()
+    {
+        RandomDir job = new RandomDir();
+        return job.Schedule();
+    }
+
   public float MaxSpeed = 10.0f;
 
   public float Speed
@@ -25,7 +45,9 @@ public class Autonomous : MonoBehaviour
   {
     Speed = 0.0f;
     SetRandomSpeed();
-    SetRandomDirection();
+    //SetRandomDirection();
+        JobHandle jobHandle = DoRandomDir();
+        jobHandle.Complete();
   }
 
   void SetRandomSpeed()
@@ -33,13 +55,10 @@ public class Autonomous : MonoBehaviour
     float speed = Random.Range(0.0f, MaxSpeed);
   }
 
-  void SetRandomDirection()
-  {
-    float angle = 30.0f;// Random.Range(-180.0f, 180.0f);
-    Vector2 dir = new Vector2(Mathf.Cos(Mathf.Deg2Rad * angle), Mathf.Sin(Mathf.Deg2Rad * angle));//, 0.0f);
-    dir.Normalize();
-    TargetDirection = dir;
-  }
+  //void SetRandomDirection()
+  //{
+    
+  //}
 
   public void SetColor(Color c)
   {
