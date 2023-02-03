@@ -1,10 +1,38 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Jobs;
 using UnityEngine;
+
+
 
 public class Autonomous : MonoBehaviour
 {
+
+    //Creating a new job to test knowledge
+  public struct RandomDirJob : IJob
+  {
+        //Insert demanding task inside to execute with multithreading
+        public void Execute()
+        {
+             float TargetSpeed = 0.0f;
+            Vector3 TargetDirection = Vector3.zero;
+             float RotationSpeed = 0.0f;
+
+            float angle = 30.0f;// Random.Range(-180.0f, 180.0f);
+            Vector2 dir = new Vector2(Mathf.Cos(Mathf.Deg2Rad * angle), Mathf.Sin(Mathf.Deg2Rad * angle));//, 0.0f);
+            dir.Normalize();
+            TargetDirection = dir;
+        }
+  }
+    private JobHandle SetRandomDir()
+    {
+        RandomDirJob job = new RandomDirJob();
+        return job.Schedule();
+    }
+
+
   public float MaxSpeed = 10.0f;
+ 
 
   public float Speed
   {
@@ -35,10 +63,10 @@ public class Autonomous : MonoBehaviour
 
   void SetRandomDirection()
   {
-    float angle = 30.0f;// Random.Range(-180.0f, 180.0f);
-    Vector2 dir = new Vector2(Mathf.Cos(Mathf.Deg2Rad * angle), Mathf.Sin(Mathf.Deg2Rad * angle));//, 0.0f);
-    dir.Normalize();
-    TargetDirection = dir;
+    //float angle = 30.0f;// Random.Range(-180.0f, 180.0f);
+    //Vector2 dir = new Vector2(Mathf.Cos(Mathf.Deg2Rad * angle), Mathf.Sin(Mathf.Deg2Rad * angle));//, 0.0f);
+    //dir.Normalize();
+    //TargetDirection = dir;
   }
 
   public void SetColor(Color c)
@@ -49,6 +77,10 @@ public class Autonomous : MonoBehaviour
   // Update is called once per frame
   public void Update()
   {
+        JobHandle jobHandle = SetRandomDir();
+        jobHandle.Complete(); //Pauses main thread until job has been completed
+
+
     Vector3 targetDirection = TargetDirection;
     targetDirection.Normalize();
 

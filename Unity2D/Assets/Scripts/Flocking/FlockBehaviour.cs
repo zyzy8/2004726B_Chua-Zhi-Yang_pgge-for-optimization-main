@@ -2,9 +2,61 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
-
+using Unity.Jobs;
+using Unity.Collections;
 public class FlockBehaviour : MonoBehaviour
 {
+
+    public struct RandomJob : IJob
+    {
+        public void Execute()
+        {   
+            List<Flock> flocks = new List<Flock>();
+            while (true)
+            {
+                foreach (Flock flock in flocks)
+                {
+                    if (flock.useRandomRule)
+                    {
+                        List<Autonomous> autonomousList = flock.mAutonomous;
+                        for (int i = 0; i < autonomousList.Count; ++i)
+                        {
+                            float rand = Random.Range(0.0f, 1.0f);
+                            autonomousList[i].TargetDirection.Normalize();
+                            float angle = Mathf.Atan2(autonomousList[i].TargetDirection.y, autonomousList[i].TargetDirection.x);
+
+                            if (rand > 0.5f)
+                            {
+                                angle += Mathf.Deg2Rad * 45.0f;
+                            }
+                            else
+                            {
+                                angle -= Mathf.Deg2Rad * 45.0f;
+                            }
+                            Vector3 dir = Vector3.zero;
+                            dir.x = Mathf.Cos(angle);
+                            dir.y = Mathf.Sin(angle);
+
+                            autonomousList[i].TargetDirection += dir * flock.weightRandom;
+                            autonomousList[i].TargetDirection.Normalize();
+                            //Debug.Log(autonomousList[i].TargetDirection);
+
+                            float speed = Random.Range(1.0f, autonomousList[i].MaxSpeed);
+                            autonomousList[i].TargetSpeed += speed * flock.weightSeparation;
+                            autonomousList[i].TargetSpeed /= 2.0f;
+                        }
+                    }
+                    //yield return null;
+                }
+            }
+        }
+    }
+    private JobHandle DoRandomJob()
+    {
+        RandomJob job = new RandomJob();
+        return job.Schedule();
+    }
+
   List<Obstacle> mObstacles = new List<Obstacle>();
 
   [SerializeField]
@@ -52,7 +104,7 @@ public class FlockBehaviour : MonoBehaviour
 
     StartCoroutine(Coroutine_Flocking());
 
-    StartCoroutine(Coroutine_Random());
+    //StartCoroutine(Coroutine_Random());
     StartCoroutine(Coroutine_AvoidObstacles());
     StartCoroutine(Coroutine_SeparationWithEnemies());
     StartCoroutine(Coroutine_Random_Motion_Obstacles());
@@ -74,7 +126,9 @@ public class FlockBehaviour : MonoBehaviour
     HandleInputs();
     Rule_CrossBorder();
     Rule_CrossBorder_Obstacles();
-  }
+        JobHandle jobHandle = DoRandomJob();
+        jobHandle.Complete();
+    }
 
   void HandleInputs()
   {
@@ -324,47 +378,47 @@ public class FlockBehaviour : MonoBehaviour
       yield return new WaitForSeconds(2.0f);
     }
   }
-  IEnumerator Coroutine_Random()
-  {
-    while (true)
-    {
-      foreach (Flock flock in flocks)
-      {
-        if (flock.useRandomRule)
-        {
-          List<Autonomous> autonomousList = flock.mAutonomous;
-          for (int i = 0; i < autonomousList.Count; ++i)
-          {
-            float rand = Random.Range(0.0f, 1.0f);
-            autonomousList[i].TargetDirection.Normalize();
-            float angle = Mathf.Atan2(autonomousList[i].TargetDirection.y, autonomousList[i].TargetDirection.x);
+  //IEnumerator Coroutine_Random()
+  //{
+  //  while (true)
+  //  {
+  //    foreach (Flock flock in flocks)
+  //    {
+  //      if (flock.useRandomRule)
+  //      {
+  //        List<Autonomous> autonomousList = flock.mAutonomous;
+  //        for (int i = 0; i < autonomousList.Count; ++i)
+  //        {
+  //          float rand = Random.Range(0.0f, 1.0f);
+  //          autonomousList[i].TargetDirection.Normalize();
+  //          float angle = Mathf.Atan2(autonomousList[i].TargetDirection.y, autonomousList[i].TargetDirection.x);
 
-            if (rand > 0.5f)
-            {
-              angle += Mathf.Deg2Rad * 45.0f;
-            }
-            else
-            {
-              angle -= Mathf.Deg2Rad * 45.0f;
-            }
-            Vector3 dir = Vector3.zero;
-            dir.x = Mathf.Cos(angle);
-            dir.y = Mathf.Sin(angle);
+  //          if (rand > 0.5f)
+  //          {
+  //            angle += Mathf.Deg2Rad * 45.0f;
+  //          }
+  //          else
+  //          {
+  //            angle -= Mathf.Deg2Rad * 45.0f;
+  //          }
+  //          Vector3 dir = Vector3.zero;
+  //          dir.x = Mathf.Cos(angle);
+  //          dir.y = Mathf.Sin(angle);
 
-            autonomousList[i].TargetDirection += dir * flock.weightRandom;
-            autonomousList[i].TargetDirection.Normalize();
-            //Debug.Log(autonomousList[i].TargetDirection);
+  //          autonomousList[i].TargetDirection += dir * flock.weightRandom;
+  //          autonomousList[i].TargetDirection.Normalize();
+  //          //Debug.Log(autonomousList[i].TargetDirection);
 
-            float speed = Random.Range(1.0f, autonomousList[i].MaxSpeed);
-            autonomousList[i].TargetSpeed += speed * flock.weightSeparation;
-            autonomousList[i].TargetSpeed /= 2.0f;
-          }
-        }
-        //yield return null;
-      }
-      yield return new WaitForSeconds(TickDurationRandom);
-    }
-  }
+  //          float speed = Random.Range(1.0f, autonomousList[i].MaxSpeed);
+  //          autonomousList[i].TargetSpeed += speed * flock.weightSeparation;
+  //          autonomousList[i].TargetSpeed /= 2.0f;
+  //        }
+  //      }
+  //      //yield return null;
+  //    }
+  //    yield return new WaitForSeconds(TickDurationRandom);
+  //  }
+  //}
   void Rule_CrossBorder_Obstacles()
   {
     for (int i = 0; i < Obstacles.Length; ++i)
