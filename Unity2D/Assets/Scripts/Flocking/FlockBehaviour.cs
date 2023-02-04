@@ -8,7 +8,9 @@ using Unity.Burst;
 
 public class FlockBehaviour : MonoBehaviour
 {
-    //NativeArray<JobHandle> jobHandleList;
+
+    //Setting up of struct containing code and behaviours required to run the function
+    //And compile the job with the Burst compiler
     [BurstCompile]
     public struct Rule_CrossBorder : IJob
     {
@@ -72,7 +74,8 @@ public class FlockBehaviour : MonoBehaviour
             }
         }
     }
-
+    //Setting up of struct containing code and behaviours required to run the function
+    //And compile the job with the Burst compiler
     [BurstCompile]
     public struct Rule_CrossBorder_Obstacles : IJob
     {
@@ -106,13 +109,15 @@ public class FlockBehaviour : MonoBehaviour
             }
     } }
 
+
+    //Create instance of the job and schedule it to be completed on the job handle
     private JobHandle DoRule_CrossBorder()
     {
         Rule_CrossBorder job = new Rule_CrossBorder();
         
         return job.Schedule();
     }
-
+    //Create instance of the job and schedule it to be completed on the job handle
     private JobHandle DoRule_CrossBorder_Obstacles()
     {
         Rule_CrossBorder_Obstacles job = new Rule_CrossBorder_Obstacles();
@@ -201,20 +206,23 @@ public class FlockBehaviour : MonoBehaviour
   {
     HandleInputs();
         //Rule_CrossBorder();
-        NativeArray<JobHandle> jobHandleList = new NativeArray<JobHandle>(1, Allocator.Temp);
-
-        JobHandle jobHandle = DoRule_CrossBorder();
-        jobHandle = DoRule_CrossBorder_Obstacles();
-        //Rule_CrossBorder jobData = new Rule_CrossBorder
-        //{
-        //    jobHandleList = jobHandleList
-        //};
-
-        jobHandle.Complete();
-        
-        JobHandle.CompleteAll(jobHandleList);
-        jobHandleList.Dispose();
         //Rule_CrossBorder_Obstacles();
+
+        //Create a list of jobhandles
+        NativeList<JobHandle> jobHandleList = new NativeList<JobHandle>(Allocator.Temp);
+
+        //Calling the jobs which will then return their jobhandles
+        //And then add the job handle to the job handle list
+        JobHandle jobHandle = DoRule_CrossBorder();
+        jobHandleList.Add(jobHandle);
+        jobHandle = DoRule_CrossBorder_Obstacles();
+        jobHandleList.Add(jobHandle);
+        
+        //Parse in the job handle list and call the CompleteAll function to complete all the jobs on the list
+        JobHandle.CompleteAll(jobHandleList);
+        //Dispose the job handle list to free up memory once the jobs has been completed
+        jobHandleList.Dispose();
+        
   }
 
   void HandleInputs()
@@ -535,8 +543,59 @@ public class FlockBehaviour : MonoBehaviour
         //}
     }
 
-  //void Rule_CrossBorder()
-  //{
-    
-  //}
+//void Rule_CrossBorder()
+//{
+//    foreach (Flock flock in flocks)
+//    {
+//        List<Autonomous> autonomousList = flock.mAutonomous;
+//        if (flock.bounceWall)
+//        {
+//            for (int i = 0; i < autonomousList.Count; ++i)
+//            {
+//                Vector3 pos = autonomousList[i].transform.position;
+//                if (autonomousList[i].transform.position.x + 5.0f > Bounds.bounds.max.x)
+//                {
+//                    autonomousList[i].TargetDirection.x = -1.0f;
+//                }
+//                if (autonomousList[i].transform.position.x - 5.0f < Bounds.bounds.min.x)
+//                {
+//                    autonomousList[i].TargetDirection.x = 1.0f;
+//                }
+//                if (autonomousList[i].transform.position.y + 5.0f > Bounds.bounds.max.y)
+//                {
+//                    autonomousList[i].TargetDirection.y = -1.0f;
+//                }
+//                if (autonomousList[i].transform.position.y - 5.0f < Bounds.bounds.min.y)
+//                {
+//                    autonomousList[i].TargetDirection.y = 1.0f;
+//                }
+//                autonomousList[i].TargetDirection.Normalize();
+//            }
+//        }
+//        else
+//        {
+//            for (int i = 0; i < autonomousList.Count; ++i)
+//            {
+//                Vector3 pos = autonomousList[i].transform.position;
+//                if (autonomousList[i].transform.position.x > Bounds.bounds.max.x)
+//                {
+//                    pos.x = Bounds.bounds.min.x;
+//                }
+//                if (autonomousList[i].transform.position.x < Bounds.bounds.min.x)
+//                {
+//                    pos.x = Bounds.bounds.max.x;
+//                }
+//                if (autonomousList[i].transform.position.y > Bounds.bounds.max.y)
+//                {
+//                    pos.y = Bounds.bounds.min.y;
+//                }
+//                if (autonomousList[i].transform.position.y < Bounds.bounds.min.y)
+//                {
+//                    pos.y = Bounds.bounds.max.y;
+//                }
+//                autonomousList[i].transform.position = pos;
+//            }
+//        }
+//    }
+//}
 

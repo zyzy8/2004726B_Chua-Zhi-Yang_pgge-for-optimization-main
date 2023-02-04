@@ -6,8 +6,10 @@ using Unity.Collections;
 
 public class Autonomous : MonoBehaviour
 {
+    //Set up struct that contains all the info and behaviour for the job
     public struct RandomDir : IJob
     {
+        //Execute function to execute the code inside when the job runs
         public void Execute()
         {
             Vector3 TargetDirection = Vector3.zero;
@@ -18,9 +20,12 @@ public class Autonomous : MonoBehaviour
         }
     }
 
+    //Return a job handle
     JobHandle DoRandomDir()
     {
+        //Create instance of the RandomDir job
         RandomDir job = new RandomDir();
+        //Schedule this job to be completed by a thread if available
         return job.Schedule();
     }
 
@@ -46,7 +51,10 @@ public class Autonomous : MonoBehaviour
     Speed = 0.0f;
     SetRandomSpeed();
     //SetRandomDirection();
+
+        //Call the job which will return the job handle
         JobHandle jobHandle = DoRandomDir();
+        //Call to make the jobhandle complete the job
         jobHandle.Complete();
   }
 
